@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conteo de stock por estantería</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f5f6f4; --card:#fff; --ink:#1d2321; --muted:#66706b; --line:#dfe3df;
+  --accent:#0f6b5c; --accent-soft:#e3f1ee; --ok:#1f7a3a; --ok-soft:#e5f4e8;
+  --bad:#b3261e; --bad-soft:#fbe9e7; --warn:#9a6200; --warn-soft:#fdf1dc; --blue:#2457a6; --blue-soft:#e6eefa;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+header{background:var(--accent);color:#fff;padding:14px 18px}
+header h1{margin:0;font-size:19px;font-weight:650}
+header p{margin:3px 0 0;font-size:13px;opacity:.88}
+main{max-width:1100px;margin:0 auto;padding:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grow{flex:1 1 auto}
+button,.btn{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:#b9c2bd}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.danger{color:var(--bad)}
+button.sm{padding:3px 8px;font-size:13px}
+button:disabled{opacity:.45;cursor:default}
+label.file{display:inline-block;background:var(--accent);color:#fff;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:600}
+label.file input{display:none}
+select,input[type=text],input[type=search]{font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 9px;background:#fff;color:var(--ink)}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.err{background:var(--bad-soft);color:var(--bad);border-radius:8px;padding:8px 10px;margin-top:8px}
+.note{background:var(--blue-soft);color:#173a73;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:13px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.tab{border-radius:999px;padding:6px 14px;background:#fff;border:1px solid var(--line);cursor:pointer;font-weight:600}
+.tab.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.tab .c{font-weight:400;opacity:.75;margin-left:4px}
+.prog{height:8px;background:#e7ebe8;border-radius:99px;overflow:hidden;margin:6px 0 2px}
+.prog>div{height:100%;background:var(--accent)}
+.stats{display:flex;gap:14px;flex-wrap:wrap;font-size:13px}
+.stats b{font-size:15px}
+.list{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.sect{background:#eef1ef;padding:6px 12px;font-weight:650;font-size:13px;letter-spacing:.02em;text-transform:uppercase;color:#3d4743;border-top:1px solid var(--line)}
+.sect:first-child{border-top:0}
+.item{display:grid;grid-template-columns:40px 92px 1fr 82px 96px 82px;gap:10px;align-items:center;padding:8px 12px;border-top:1px solid #eef0ee}
+.item.arr{grid-template-columns:40px 92px 1fr 230px 92px}
+.item:first-child{border-top:0}
+.item.hit{background:#fffbe6}
+.item.okr{background:#fbfefb}
+.pos{color:var(--muted);font-variant-numeric:tabular-nums;text-align:right;font-size:13px}
+.nm{font-weight:600}
+.sub{font-size:12px;color:var(--muted);margin-top:1px}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.cnt input{width:100%;text-align:right;font-size:16px;padding:6px 8px;border:1.5px solid #c9d0cc;border-radius:8px;font-variant-numeric:tabular-nums}
+.cnt input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.cnt input.done{border-color:#9cc8b0;background:#f6fbf8}
+.diff{text-align:right;font-weight:650;font-variant-numeric:tabular-nums;font-size:14px}
+.pill{display:inline-block;border-radius:99px;padding:1px 8px;font-size:12px;font-weight:600}
+.p-ok{background:var(--ok-soft);color:var(--ok)}
+.p-bad{background:var(--bad-soft);color:var(--bad)}
+.p-warn{background:var(--warn-soft);color:var(--warn)}
+.p-man{background:var(--blue-soft);color:var(--blue)}
+.hdr{display:grid;grid-template-columns:40px 92px 1fr 82px 96px 82px;gap:10px;padding:7px 12px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--line);background:#fafbfa}
+.hdr.arr{grid-template-columns:40px 92px 1fr 230px 92px}
+.mv{display:flex;gap:4px;justify-content:flex-end}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+details summary{cursor:pointer;font-weight:600}
+.maptable{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:8px}
+.maptable label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:3px 10px;font-size:13px;cursor:pointer}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip .c{opacity:.75;margin-left:3px}
+.chip.full{border-color:#9cc8b0}
+.item.arr .tsel{display:flex;flex-direction:column;gap:4px}
+.item.arr .tsel select{font-size:13px;padding:3px 6px}
+.nmw{display:flex;gap:8px;align-items:flex-start}
+.lock{border:1px solid var(--line);background:#fff;border-radius:7px;padding:2px 5px;font-size:14px;line-height:1.2;cursor:pointer;opacity:.45;flex:none}
+.lock:hover{opacity:1}
+.lock.on{opacity:1;background:var(--warn-soft);border-color:#e7c88a}
+.tras{border:1px solid var(--line);background:#fff;border-radius:7px;padding:2px 5px;font-size:14px;line-height:1.2;cursor:pointer;opacity:.45;flex:none}
+.tras:hover{opacity:1}
+.tras.on{opacity:1;background:var(--blue-soft);border-color:#a9c0e6}
+.code{font-weight:700;color:var(--ink)}
+table.tt{width:100%;border-collapse:collapse;font-size:14px}
+table.tt th{text-align:left;font-size:12px;color:var(--muted);text-transform:uppercase;font-weight:600;padding:6px;border-bottom:1px solid var(--line)}
+table.tt td{padding:6px;border-bottom:1px solid #eef0ee;vertical-align:middle}
+table.tt td.n{text-align:right;font-variant-numeric:tabular-nums}
+table.tt input{width:80px;text-align:right;font:inherit;border:1.5px solid #c9d0cc;border-radius:7px;padding:4px 6px}
+.help h3{font-size:15px;margin:14px 0 4px}
+.help p,.help li{font-size:14px}
+.modal{position:fixed;inset:0;background:rgba(20,25,23,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.modal.on{display:flex}
+.modal .box{background:#fff;border-radius:12px;padding:18px;max-width:440px;width:100%}
+.modal h3{margin:0 0 10px}
+.modal .f{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;font-size:13px;color:var(--muted)}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1d2321;color:#fff;padding:9px 16px;border-radius:9px;font-size:14px;display:none;z-index:20}
+.sticky{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:6px}
+@media (max-width:700px){
+  .sticky{position:static}
+  .item{grid-template-columns:24px 1fr 56px 70px 50px;gap:6px;padding:8px}
+  .hdr{grid-template-columns:24px 1fr 56px 70px 50px;gap:6px;padding:7px 8px}
+  .item.arr,.hdr.arr{grid-template-columns:30px 1fr 100px}
+  .item.arr .tsel,.hdr.arr .tsel{display:none}
+  body.blind .item, body.blind .hdr{grid-template-columns:30px 1fr 84px}
+}
+body.blind .stk, body.blind .diff{display:none}
+body.blind .item,body.blind .hdr{grid-template-columns:40px 92px 1fr 110px}
+.cod{font-weight:700;font-variant-numeric:tabular-nums;font-size:14px;word-break:break-all}
+.hdr .cod{font-weight:inherit;font-size:inherit}
+.codsub{display:none}
+@media (max-width:700px){ .cod{display:none} .codsub{display:inline} }
+@media (max-width:700px){ body.blind .item,body.blind .hdr{grid-template-columns:30px 1fr 84px} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Conteo de stock por estantería</h1>
+  <p>Medicamentos y descartables clasificados y en orden alfabético, para contar en el mismo orden en que están en los estantes.</p>
+</header>
+<main>
+
+  <section class="card" id="loadCard">
+    <div class="row">
+      <label class="file">Cargar “Listado de Stock” (Excel)<input type="file" id="file" accept=".xlsx,.xls,.xlsm,.csv,.txt"></label>
+      <button id="btnSample">Probar con datos de ejemplo</button>
+      <span class="grow"></span>
+      <button id="btnHelp">Cómo funciona</button>
+    </div>
+    <div id="fileInfo" class="small muted" style="margin-top:8px"></div>
+    <div id="errBox"></div>
+    <details id="mapBox" style="margin-top:10px;display:none">
+      <summary>Columnas detectadas</summary>
+      <div class="maptable" id="mapTable"></div>
+    </details>
+  </section>
+
+  <section class="card help" id="helpCard" style="display:none">
+    <div class="row"><b class="grow">Cómo funciona</b><button class="sm" id="btnHelpClose">Cerrar</button></div>
+    <h3>1. Sacar el listado del sistema</h3>
+    <p>En SIGEHOS, módulo “Medicación e insumos”, abrí <b>Listado de Stock</b> con <b>Agrupado</b>, <b>Activos</b> y <b>Con Stock</b> tildados y exportalo a Excel. Cargá ese archivo con el botón verde. Si el archivo viene por lote, la app suma el stock de cada artículo y muestra los lotes debajo del nombre.</p>
+    <h3>2. Clasificación</h3>
+    <p>Cada artículo queda en <b>Medicamentos</b> o <b>Descartables</b>. Si el listado trae una columna de tipo o rubro se usa esa; si no, se reconoce por la descripción (jeringas, agujas, gasas, tiras reactivas, lancetas, guantes, etc.). Los medicamentos de los programas <b>Remediar</b>, <b>TBC</b> y <b>VIH</b> van cada uno a su propia pestaña. TBC y VIH se reconocen por el principio activo; Remediar, por la columna de origen o programa del listado (o si la descripción dice “Remediar”). Si un mismo medicamento está en stock propio y de Remediar, aparece en las dos pestañas. Lo que la app marque mal se corrige en <b>Acomodar</b> y queda recordado para los próximos listados.</p>
+    <p><b>Controlados</b>: los estupefacientes (morfina, metadona, fentanilo, codeína, oxicodona, buprenorfina, ketamina…) y los psicotrópicos (clonazepam, alprazolam, diazepam, lorazepam, midazolam, zolpidem, fenobarbital, metilfenidato…) van a su propia pestaña, separados por tipo y forma, aunque sean de Remediar (se les deja la etiqueta Remediar). Cualquier otro medicamento que quieras controlar, por ejemplo tramadol, se marca con el candado 🔓 al lado del nombre: pasa a Controlados como <b>Control interno</b>. Tocando de nuevo el candado 🔒 vuelve a su grupo. Si alguno quedó mal clasificado, cambialo en el modo <b>Acomodar</b>.</p>
+    <h3>3. El orden de los estantes</h3>
+    <p>Por defecto se ordena alfabéticamente por principio activo (genérico). Dentro de cada grupo de medicamentos se separan por forma farmacéutica: comprimidos y cápsulas, líquidos orales (jarabes y suspensiones), inyectables, inhalatorios, gotas (orales, oftálmicas, óticas y nasales, todas juntas), tópicos y óvulos/supositorios. Con los botones de forma podés contar un estante a la vez. La forma se deduce de la descripción; si alguna queda mal, cambiala en <b>Acomodar</b>. Si algún artículo está en otro lugar del estante, entrá en <b>Acomodar</b> y movelo con las flechas: la app recuerda ese orden en esta computadora y lo usa en los próximos conteos.</p>
+    <h3>4. Contar</h3>
+    <p>Recorré el estante y anotá la cantidad física en <b>Contado</b>. Con <b>Enter</b> pasás al siguiente. La diferencia se calcula sola: en verde coincide, en rojo falta, en naranja sobra. Con <b>Conteo ciego</b> se oculta el stock del sistema mientras contás, para no influenciarte; se muestra al final. Si encontrás algo que no figura en el listado, usá <b>Agregar artículo</b>.</p>
+    <h3>Traslado a enfermería</h3>
+    <p>Los medicamentos y descartables que no deben quedar en el depósito de farmacia se marcan con <b>🏥</b>, al lado del nombre, en cualquier pestaña, y pasan a la pestaña <b>Enfermería (traslado)</b>, separados por grupo de origen. <b>Sugerir descartables</b> marca de una vez todos los descartables menos los que se entregan a pacientes por ventanilla (tiras reactivas, lancetas, agujas para lapicera de insulina y aerocámaras); después quitás los que quieras dejar. En esa pestaña, debajo de la lista, queda la planilla de traslado con el <b>código</b> de cada artículo y la cantidad a trasladar, para copiarlo o descargarlo en Excel. La marca se recuerda para los próximos conteos.</p>
+    <h3>Los cambios de clasificación quedan guardados</h3>
+    <p>Todo lo que corregís (grupo, forma farmacéutica, controlados, traslado a enfermería y orden del estante) se guarda en la app, no solo en el navegador. Se aplica automáticamente cada vez que cargás un listado nuevo y desde cualquier computadora donde abras la app con tu cuenta. La lista completa está en “Cambios de clasificación guardados”, abajo, y desde ahí podés deshacer cualquiera.</p>
+    <h3>5. Guardar y exportar</h3>
+    <p>Lo que contás se guarda en este navegador mientras trabajás (si borrás los datos del navegador, se pierde). <b>Planilla para contar</b> descarga un Excel en el orden del estante con la columna Contado vacía, para imprimir y contar en papel. <b>Resultado del conteo</b> descarga el Excel con sistema, contado y diferencia de cada artículo, una hoja por grupo y un resumen de diferencias.</p>
+  </section>
+
+  <div id="work" style="display:none">
+    <div class="sticky">
+      <div class="tabs" id="tabs"></div>
+      <div class="card" style="padding:10px 14px">
+        <div class="row">
+          <input type="search" id="q" placeholder="Buscar artículo…" class="grow" style="min-width:180px">
+          <select id="fShow">
+            <option value="all">Todos</option>
+            <option value="pend">Sin contar</option>
+            <option value="diff">Con diferencia</option>
+          </select>
+          <button id="btnMode">Acomodar orden</button>
+        </div>
+        <div class="row small" style="margin-top:8px">
+          <label>Ordenar por
+            <select id="sortBy">
+              <option value="gen">Principio activo (genérico)</option>
+              <option value="desc">Descripción</option>
+            </select>
+          </label>
+          <label><input type="checkbox" id="blind"> Conteo ciego</label>
+          <label id="depWrap" style="display:none">Depósito <select id="dep"></select></label>
+        </div>
+        <div class="chips" id="chips"></div>
+        <div class="prog"><div id="progBar" style="width:0"></div></div>
+        <div class="stats" id="stats"></div>
+      </div>
+    </div>
+
+    <div class="list" id="list"></div>
+
+    <section class="card" id="trasCard" style="margin-top:12px">
+      <div class="row">
+        <b class="grow" id="trasTitle">Traslado a enfermería</b>
+        <button class="sm" id="btnTrasSug" title="Marca todos los descartables menos los que se entregan a pacientes por ventanilla">Sugerir descartables</button>
+        <span id="trasBtns" class="row"><button class="sm" id="btnTrasCopy">Copiar listado</button>
+        <button class="sm primary" id="btnTrasXls">Descargar (Excel)</button></span>
+      </div>
+      <p class="small muted" id="trasHint" style="margin:6px 0 0"></p>
+      <div id="trasFull">
+      <p class="small muted" style="margin:6px 0 8px">Planilla de traslado: medicamentos y descartables que no van en este depósito, con su código. La cantidad a trasladar arranca en lo contado (o en el stock del sistema si todavía no lo contaste) y la podés cambiar. Con ✕ o tocando de nuevo 🏥 vuelven a su grupo.</p>
+      <div id="trasList"></div>
+      </div>
+    </section>
+
+    <div class="card" style="margin-top:12px">
+      <div class="row">
+        <button id="btnAdd">Agregar artículo</button>
+        <button id="btnSheet">Planilla para contar (Excel)</button>
+        <button class="primary" id="btnResult">Resultado del conteo (Excel)</button>
+        <button id="btnCopy">Copiar diferencias</button>
+        <span class="grow"></span>
+        <button id="btnResetOrder">Volver al orden alfabético</button>
+        <button class="danger" id="btnNew">Empezar conteo nuevo</button>
+      </div>
+      <div class="small muted" id="saveInfo" style="margin-top:8px"></div>
+      <div class="small" id="cfgInfo" style="margin-top:4px"></div>
+    </div>
+
+    <div class="card">
+      <details id="chgBox">
+        <summary id="chgTitle">Cambios de clasificación guardados</summary>
+        <p class="small muted" style="margin:6px 0">Cada cambio que hacés (grupo, forma farmacéutica, control 🔒, traslado a enfermería 🏥 y orden del estante) se guarda en la app y se aplica solo en los próximos listados y desde cualquier computadora donde abras la app con tu cuenta. Con ✕ deshacés un cambio.</p>
+        <div class="row" style="margin:6px 0 8px">
+          <button class="sm" id="btnCfgExp">Exportar clasificación</button>
+          <label class="btn sm" style="font-size:13px;padding:3px 8px">Importar clasificación<input type="file" id="cfgImp" accept=".json" style="display:none"></label>
+        </div>
+        <div id="chgList"></div>
+      </details>
+    </div>
+  </div>
+
+</main>
+
+<div class="modal" id="mAdd"><div class="box">
+  <h3>Agregar artículo encontrado</h3>
+  <div class="f">Nombre<input type="text" id="aName" placeholder="Ej.: Ibuprofeno 400 mg comprimidos"></div>
+  <div class="f">Grupo<select id="aTipo"></select></div>
+  <div class="f">Cantidad contada<input type="text" id="aCnt" inputmode="numeric"></div>
+  <div class="row" style="justify-content:flex-end"><button id="aCancel">Cancelar</button><button class="primary" id="aOk">Agregar</button></div>
+</div></div>
+
+<div class="modal" id="mConfirm"><div class="box">
+  <h3 id="cTitle"></h3>
+  <p id="cText" class="small"></p>
+  <div class="row" style="justify-content:flex-end"><button id="cNo">Cancelar</button><button class="primary" id="cYes">Confirmar</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+var IN_CLAUDE = !!(window.claude && typeof window.claude.use==='function') || /claude/i.test(location.hostname);
+
+/* ---------- utilidades ---------- */
+function $(id){ return document.getElementById(id); }
+function norm(s){ return String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim(); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function parseNum(v){
+  if(typeof v==='number') return isFinite(v)?v:null;
+  if(v==null) return null;
+  var s=String(v).trim().replace(/\s/g,'');
+  if(s===''||s==='-') return null;
+  var commas=(s.match(/,/g)||[]).length, hasD=s.indexOf('.')>=0;
+  if(commas>0&&hasD){ if(s.lastIndexOf(',')>s.lastIndexOf('.')) s=s.replace(/\./g,'').replace(',','.'); else s=s.replace(/,/g,''); }
+  else if(commas>1) s=s.replace(/,/g,'');
+  else if(commas===1) s=s.replace(',','.');
+  else if(hasD && /^-?\d{1,3}(\.\d{3})+$/.test(s)) s=s.replace(/\./g,'');
+  var n=Number(s); return isFinite(n)?n:null;
+}
+function fmt(n){ if(n==null||n==='') return ''; return Number(n).toLocaleString('es-AR',{maximumFractionDigits:2}); }
+function fmtDate(v){
+  if(v instanceof Date && !isNaN(v)){ var d=new Date(v.getTime()+43200000); return ('0'+d.getUTCDate()).slice(-2)+'/'+('0'+(d.getUTCMonth()+1)).slice(-2)+'/'+d.getUTCFullYear(); }
+  if(typeof v==='number' && v>20000 && v<80000) return fmtDate(new Date(Math.round((v-25569)*86400000)));
+  return String(v==null?'':v).trim();
+}
+var collator = new Intl.Collator('es',{sensitivity:'base',numeric:true});
+function sortKey(s){ return norm(s).replace(/^[^a-z0-9]+/,''); }
+var toastT;
+function toast(msg){ var t=$('toast'); t.textContent=msg; t.style.display='block'; clearTimeout(toastT); toastT=setTimeout(function(){t.style.display='none';},2600); }
+function confirmBox(title,text,yes){
+  $('cTitle').textContent=title; $('cText').textContent=text; $('mConfirm').classList.add('on');
+  $('cYes').onclick=function(){ $('mConfirm').classList.remove('on'); yes(); };
+  $('cNo').onclick=function(){ $('mConfirm').classList.remove('on'); };
+}
+
+/* ---------- almacenamiento local ---------- */
+var KEY='conteoStock.v1', ORDKEY='conteoStock.orden.v1';
+function lsGet(k){ try{ var s=localStorage.getItem(k); return s?JSON.parse(s):null; }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ return false; } }
+
+/* ---------- estado ---------- */
+var GROUPS=['Medicamento','Remediar','Controlado','TBC','VIH','Descartable','Enfermeria'];
+var SEL_GROUPS=['Medicamento','Remediar','Controlado','TBC','VIH','Descartable'];
+var GNAME={Medicamento:'Medicamentos',Remediar:'Remediar',Controlado:'Controlados',Descartable:'Descartables',TBC:'Programa TBC',VIH:'Programa VIH',Enfermeria:'Enfermería (traslado)'};
+var state={
+  fileName:'', raw:null, map:null, items:[], counts:{}, tipoOv:{}, extra:[],
+  tab:'Medicamento', q:'', show:'all', mode:'count', sortBy:'gen', byForma:true, forma:'', formaOv:{}, ctrlOv:{}, tras:{}, trasQty:{}, blind:false, dep:'', startedAt:null
+};
+var orderMem = lsGet(ORDKEY) || {}; // {grupo|criterio: [claves en orden de estante]}
+
+function persist(){
+  var ok=lsSet(KEY,{fileName:state.fileName,raw:state.raw,map:state.map,counts:state.counts,tipoOv:state.tipoOv,formaOv:state.formaOv,ctrlOv:state.ctrlOv,tras:state.tras,trasQty:state.trasQty,extra:state.extra,
+    tab:state.tab,sortBy:state.sortBy,byForma:state.byForma,blind:state.blind,dep:state.dep,startedAt:state.startedAt,savedAt:Date.now()});
+  scheduleCfgSave();
+  $('saveInfo').textContent = ok ? 'Conteo guardado en este navegador · '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) : 'No se pudo guardar en este navegador: exportá el resultado antes de cerrar.';
+}
+function persistOrder(){ lsSet(ORDKEY,orderMem); scheduleCfgSave(); }
+
+/* ---------- clasificación guardada en la app (db compartida) ---------- */
+function canon(o){ if(Array.isArray(o)) return '['+o.map(canon).join(',')+']'; if(o&&typeof o==='object') return '{'+Object.keys(o).sort().map(function(k){return JSON.stringify(k)+':'+canon(o[k]);}).join(',')+'}'; return JSON.stringify(o); }
+function cfgSig(src){ return canon({tipoOv:src.tipoOv||{},formaOv:src.formaOv||{},ctrlOv:src.ctrlOv||{},tras:src.tras||{},order:src.order||{}}); }
+var cfgRef=null, cfgNames={}, cfgTimer=null, cfgBusy=false, cfgAgain=false, cfgLast='', cfgReady=false;
+function cfgKeys(){
+  var ks={}; [state.tipoOv,state.formaOv,state.ctrlOv,state.tras].forEach(function(o){ Object.keys(o||{}).forEach(function(k){ks[k]=1;}); });
+  return Object.keys(ks);
+}
+function encK(k){ return String(k).replace(/[^A-Za-z0-9_\-]/g,function(c){ return '~'+('000'+c.charCodeAt(0).toString(16)).slice(-4); }); }
+function decK(k){ return String(k).replace(/~([0-9a-f]{4})/g,function(_,h){ return String.fromCharCode(parseInt(h,16)); }); }
+function mapKeys(o,f){ var r={}; Object.keys(o||{}).forEach(function(k){ r[f(k)]=o[k]; }); return r; }
+function encodeCfg(b){ return {tipoOv:mapKeys(b.tipoOv,encK),formaOv:mapKeys(b.formaOv,encK),ctrlOv:mapKeys(b.ctrlOv,encK),tras:mapKeys(b.tras,encK),order:mapKeys(b.order,encK),names:mapKeys(b.names,encK),v:2}; }
+function decodeCfg(d){ return {tipoOv:mapKeys(d.tipoOv,decK),formaOv:mapKeys(d.formaOv,decK),ctrlOv:mapKeys(d.ctrlOv,decK),tras:mapKeys(d.tras,decK),order:mapKeys(d.order,decK),names:mapKeys(d.names,decK),updatedAt:d.updatedAt}; }
+function cfgBody(){
+  var names={};
+  cfgKeys().forEach(function(k){ var it=state.items.find(function(x){return x.key===k;}); names[k]= it ? ((it.code?it.code+' · ':'')+it.desc) : (cfgNames[k]||k); });
+  return {tipoOv:state.tipoOv,formaOv:state.formaOv,ctrlOv:state.ctrlOv,tras:state.tras,order:orderMem,names:names};
+}
+function cfgStatus(txt,bad){ $('cfgInfo').innerHTML='<span style="color:'+(bad?'var(--bad)':'var(--ok)')+'">'+txt+'</span>'; }
+function scheduleCfgSave(){
+  renderChanges(); localCfgSave();
+  if(!cfgRef || !cfgReady) return;
+  if(cfgSig(cfgBody())===cfgLast) return;
+  clearTimeout(cfgTimer); cfgTimer=setTimeout(cfgSave,800);
+}
+async function cfgSave(){
+  cfgTimer=null;
+  if(cfgBusy){ cfgAgain=true; return; }
+  var body=cfgBody(), js=cfgSig(body); if(js===cfgLast) return;
+  cfgBusy=true; cfgStatus('Guardando cambios de clasificación…');
+  try{
+    var enc=encodeCfg(body); enc.updatedAt=Date.now(); await cfgRef.set(enc); cfgLast=js; cfgNames=body.names;
+    cfgStatus('✓ Clasificación guardada en la app · '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}));
+  }catch(e){
+    if(e && e.code==='unavailable'){ cfgBusy=false; setTimeout(cfgSave,1500); return; }
+    cfgStatus('No se pudo guardar la clasificación en la app; queda guardada solo en este navegador.',true);
+  }
+  cfgBusy=false;
+  if(cfgAgain){ cfgAgain=false; cfgSave(); }
+}
+function applyCfg(d){
+  state.tipoOv=d.tipoOv||{}; state.formaOv=d.formaOv||{}; state.ctrlOv=d.ctrlOv||{}; state.tras=d.tras||{};
+  orderMem=d.order||{}; cfgNames=d.names||{};
+  lsSet(ORDKEY,orderMem);
+  cfgLast=cfgSig(d);
+  buildItems(); render(); persist();
+}
+var CLKEY='conteoStock.clasif.v1';
+function localCfgSave(){ if(!IN_CLAUDE) lsSet(CLKEY,cfgBody()); }
+function startCfg(){
+  if(!IN_CLAUDE){
+    var loc=lsGet(CLKEY);
+    if(loc){ applyCfg(loc); cfgStatus('✓ Clasificación guardada en este navegador. Para pasarla a otra PC usá Exportar / Importar clasificación.'); return; }
+    // primera vez en esta PC: se toma la clasificación base del repositorio
+    fetch('clasificacion.json',{cache:'no-store'}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(d){ var base=decodeCfg(d); base.tipoOv=Object.assign({},base.tipoOv,state.tipoOv); base.formaOv=Object.assign({},base.formaOv,state.formaOv); base.ctrlOv=Object.assign({},base.ctrlOv,state.ctrlOv); base.tras=Object.assign({},base.tras,state.tras); base.order=Object.assign({},base.order,orderMem); applyCfg(base); localCfgSave(); cfgStatus('✓ Se cargó la clasificación base ('+changeList().length+' cambios). Lo que corrijas se guarda en este navegador.'); }
+      else cfgStatus('La clasificación se guarda en este navegador.');
+    }).catch(function(){ cfgStatus('La clasificación se guarda en este navegador.'); });
+    return;
+  }
+  window.claude.use('db').then(function(db){
+    if(!db){ cfgStatus('La clasificación se guarda solo en este navegador (iniciá sesión en claude.ai para guardarla en la app).',false); return; }
+    cfgRef=db.doc('config/clasificacion');
+    var t=setTimeout(function(){ if(!cfgReady) cfgStatus('No se pudo leer la clasificación guardada todavía; tus cambios quedan en este navegador.',true); },10000);
+    var first=true;
+    cfgRef.onSnapshot(function(snap){
+      if(snap.metadata.hasPendingWrites) return;
+      if(!snap.metadata.fromCache) clearTimeout(t);
+      if(cfgBusy || cfgTimer) return;
+      if(snap.exists){
+        var d=decodeCfg(snap.data());
+        var js=cfgSig(d);
+        if(js!==cfgLast){
+          if(first && !snap.metadata.fromCache && !cfgReady){
+            // primera vez: si este navegador tiene cambios que la app no tiene, se suman
+            var loc={tipoOv:state.tipoOv,formaOv:state.formaOv,ctrlOv:state.ctrlOv,tras:state.tras,order:orderMem};
+            var merged=Object.assign({},d,{tipoOv:Object.assign({},loc.tipoOv,d.tipoOv),formaOv:Object.assign({},loc.formaOv,d.formaOv),ctrlOv:Object.assign({},loc.ctrlOv,d.ctrlOv),tras:Object.assign({},loc.tras,d.tras),order:Object.assign({},loc.order,d.order)});
+            applyCfg(merged);
+            cfgLast=cfgSig(d); // si había cambios locales, se guardan
+          } else applyCfg(d);
+        }
+        if(d.updatedAt) cfgStatus('✓ Clasificación guardada en la app · último cambio '+new Date(d.updatedAt).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}));
+      } else {
+        cfgLast='';
+      }
+      if(!snap.metadata.fromCache){ first=false; if(!cfgReady){ cfgReady=true; scheduleCfgSave(); } }
+    },function(){ clearTimeout(t); cfgStatus('No se pudo conectar con la app; la clasificación queda guardada en este navegador.',true); });
+  }).catch(function(){});
+}
+
+/* listado de cambios */
+function changeList(){
+  var out=[];
+  cfgKeys().forEach(function(k){
+    var it=state.items.find(function(x){return x.key===k;});
+    var name= it ? ((it.code?it.code+' · ':'')+it.desc) : (cfgNames[k]||k), d=[];
+    if(state.tipoOv[k]) d.push('grupo: '+(GNAME[state.tipoOv[k]]||state.tipoOv[k]));
+    if(state.ctrlOv[k]===true) d.push('🔒 controlado');
+    if(state.ctrlOv[k]===false) d.push('sin control');
+    if(state.formaOv[k]) d.push('forma: '+state.formaOv[k]);
+    if(state.tras[k]) d.push('🏥 a enfermería');
+    if(d.length) out.push({k:k,name:name,d:d.join(' · '),here:!!it});
+  });
+  out.sort(function(a,b){ return collator.compare(a.name,b.name); });
+  return out;
+}
+function renderChanges(){
+  var list=changeList(), nOrd=Object.keys(orderMem).filter(function(k){return orderMem[k]&&orderMem[k].length;}).length;
+  $('chgTitle').textContent='Cambios de clasificación guardados ('+list.length+(nOrd?' · orden de estante en '+nOrd+' grupo'+(nOrd>1?'s':''):'')+')';
+  $('chgList').innerHTML = list.length ? '<table class="tt"><tbody>'+list.map(function(c){
+    return '<tr><td>'+esc(c.name)+(c.here?'':' <span class="small muted">(no está en este listado)</span>')+'</td><td class="small">'+esc(c.d)+'</td><td><button class="sm" data-undo="'+esc(c.k)+'" title="Deshacer este cambio">✕</button></td></tr>';
+  }).join('')+'</tbody></table>' : '<div class="small muted">Todavía no hiciste cambios.</div>';
+}
+$('btnCfgExp').onclick=function(){
+  var b=cfgBody(); b.exportado=new Date().toISOString();
+  saveFile('clasificacion.json',JSON.stringify(encodeCfg(b),null,1));
+};
+$('cfgImp').addEventListener('change',async function(e){
+  var f=e.target.files[0]; if(!f) return; e.target.value='';
+  try{
+    var d=decodeCfg(JSON.parse(await f.text()));
+    Object.assign(state.tipoOv,d.tipoOv); Object.assign(state.formaOv,d.formaOv); Object.assign(state.ctrlOv,d.ctrlOv); Object.assign(state.tras,d.tras);
+    Object.keys(d.order||{}).forEach(function(k){ orderMem[k]=d.order[k]; }); Object.assign(cfgNames,d.names);
+    lsSet(ORDKEY,orderMem); buildItems(); persist(); render(); toast('Clasificación importada');
+  }catch(err){ toast('El archivo no es una clasificación válida.'); }
+});
+$('chgList').addEventListener('click',function(e){
+  var k=e.target.getAttribute('data-undo'); if(!k) return;
+  delete state.tipoOv[k]; delete state.formaOv[k]; delete state.ctrlOv[k]; delete state.tras[k]; delete state.trasQty[k];
+  buildItems(); persist(); render(); toast('Cambio deshecho');
+});
+
+/* ---------- lectura del archivo ---------- */
+function parseDelimited(text){
+  text=text.replace(/^﻿/,'');
+  var first=text.split(/\r?\n/,1)[0]||'', d=';', best=-1;
+  [';',',','\t'].forEach(function(c){ var n=first.split(c).length; if(n>best){best=n;d=c;} });
+  var rows=[],row=[],cur='',q=false;
+  for(var i=0;i<text.length;i++){
+    var ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; }
+    else if(ch==='"') q=true;
+    else if(ch===d){ row.push(cur); cur=''; }
+    else if(ch==='\n'||ch==='\r'){ if(ch==='\r'&&text[i+1]==='\n') i++; row.push(cur); cur=''; rows.push(row); row=[]; }
+    else cur+=ch;
+  }
+  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+  return rows;
+}
+async function readFile(file){
+  var buf=await file.arrayBuffer(), ext=(file.name.split('.').pop()||'').toLowerCase(), table;
+  if(['xlsx','xls','xlsm'].indexOf(ext)>=0){
+    if(typeof XLSX==='undefined') throw new Error('No se pudo cargar el lector de Excel. Guardá el archivo como CSV e intentá de nuevo.');
+    var wb=XLSX.read(buf,{type:'array',cellDates:true});
+    table=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:''});
+  } else {
+    var text; try{ text=new TextDecoder('utf-8',{fatal:true}).decode(buf); }catch(e){ text=new TextDecoder('windows-1252').decode(buf); }
+    table=parseDelimited(text);
+  }
+  table=table.filter(function(r){ return r.some(function(c){ return String(c).trim()!==''; }); })
+             .map(function(r){ return r.map(function(c){ return c instanceof Date ? fmtDate(c) : c; }); });
+  // buscar la fila de encabezados (algunos reportes traen títulos arriba)
+  var hi=0,bestScore=-1;
+  for(var i=0;i<Math.min(15,table.length);i++){
+    var m=detect(table[i].map(String)), sc=0;
+    for(var k in m) if(m[k]>=0) sc++;
+    if(sc>bestScore){ bestScore=sc; hi=i; }
+  }
+  if(table.length-hi<2) throw new Error('El archivo no tiene filas de datos.');
+  var seen={};
+  var headers=table[hi].map(function(h,i){ var s=String(h==null?'':h).trim()||('Col '+(i+1)); if(seen[s]){seen[s]++; s+=' ('+seen[s]+')';} else seen[s]=1; return s; });
+  return {headers:headers,data:table.slice(hi+1)};
+}
+
+var RX={
+  dep:/(deposito|almacen)/,
+  origen:/(origen|programa|financ|fuente|proveedor|procedencia)/,
+  venc:/(venc)/,
+  lote:/(^lote|lote$|\blote\b|partida)/,
+  stock:/(stock|existencia|saldo|disponible|cantidad|inventario)/,
+  tipo:/(tipo|categoria|rubro|clase|grupo|familia)/,
+  code:/(^cod|codigo|^material$|^sku|^id\b|^nro|^numero|^n°|^nº|interno|^item$|id art|art\.? ?n)/,
+  gen:/(generico|principio activo|droga)/,
+  desc:/(descrip|denomin|nombre|producto|medicamento|insumo|articulo|item|detalle)/
+};
+var FIELDS=['origen','dep','venc','lote','stock','tipo','code','gen','desc'];
+var FLABEL={code:'Código',desc:'Descripción',gen:'Genérico',stock:'Stock',tipo:'Tipo / rubro',dep:'Depósito',origen:'Origen / programa',lote:'Lote',venc:'Vencimiento'};
+var STOCK_PRI=[/fraccionad/,/(stock|existencia|saldo|disponible|inventario)/,/(cantidad|cant\b|unidades)/];
+function detect(headers){
+  var map={},used={};
+  // stock: primero la cantidad fraccionada (unidades), después “stock”, al final “cantidad”
+  map.stock=-1;
+  for(var p=0;p<STOCK_PRI.length && map.stock<0;p++){
+    for(var i=0;i<headers.length;i++){ var nh=norm(headers[i]); if(/(venc|minimo|maximo|punto|critico|transito|pedido)/.test(nh)) continue; if(STOCK_PRI[p].test(nh)){ map.stock=i; used[i]=true; break; } }
+  }
+  FIELDS.forEach(function(f){
+    if(f==='stock') return;
+    map[f]=-1;
+    for(var i=0;i<headers.length;i++){
+      var nh=norm(headers[i]); if(used[i]) continue;
+      if(f==='stock' && /(venc|minimo|maximo|punto|critico)/.test(nh)) continue;
+      if(f==='tipo' && /(movim)/.test(nh)) continue;
+      if(RX[f].test(nh)){ map[f]=i; used[i]=true; break; }
+    }
+  });
+  return map;
+}
+
+/* si no hay encabezado de código, buscar la columna que tiene pinta de código */
+function guessCode(t,m){
+  if(m.code>=0) return m;
+  var used={}; for(var k in m) if(m[k]>=0) used[m[k]]=true;
+  var rows=t.data.slice(0,300), best=-1;
+  var limit = m.desc>=0 ? m.desc : t.headers.length;
+  for(var c=0;c<t.headers.length;c++){
+    if(used[c]) continue;
+    var vals=rows.map(function(r){return String(r[c]==null?'':r[c]).trim();}).filter(function(v){return v!=='';});
+    if(vals.length < rows.length*0.8 || !vals.length) continue;
+    var codeLike=vals.filter(function(v){ return v.length<=20 && /\d/.test(v) && !/\s{2,}/.test(v) && !/[.,]\d{1,2}$/.test(v); }).length;
+    var uniq=new Set(vals).size;
+    if(codeLike/vals.length>=0.9 && uniq/vals.length>=0.9){ best=c; if(c<limit) break; }
+  }
+  if(best>=0){ m.code=best; m.codeGuess=true; }
+  return m;
+}
+
+/* ---------- clasificación ---------- */
+var PROG={
+  TBC:/isoniacida|isoniazida|rifampicin|rifapentina|pirazinamida|etambutol|estreptomicina|rifabutina|cicloserina|bedaquilina|etionamida|protionamida|pretomanid|clofazimina|delamanid|terizidona|capreomicina|kanamicina|aminosalicilic|paraaminosalicil/,
+  VIH:/tenofovir|lamivudina|efavirenz|dolutegravir|abacavir|zidovudina|lopinavir|ritonavir|atazanavir|darunavir|raltegravir|nevirapina|emtricitabina|\bvih\b|\bhiv\b/
+};
+var CTRL_ORDER=['Estupefacientes','Psicotrópicos','Control interno'];
+var ESTUP_RX=/morfina|metadona|fentanil|codeina|oxicodona|petidina|meperidina|hidromorfona|remifentanil|sufentanil|alfentanil|buprenorfina|ketamina|tapentadol|dextropropoxifeno|pentazocina|cocaina/;
+var PSICO_RX=/alprazolam|clonazepam|diazepam|lorazepam|midazolam|bromazepam|clobazam|clorazepato|ketazolam|lormetazepam|flunitrazepam|triazolam|flurazepam|nitrazepam|zolpidem|zopiclona|fenobarbital|metilfenidato|modafinilo|anfetamina|lisdexanfetamina|tiopental/;
+function ctrlOf(desc,gen){ var t=norm(gen+' '+desc); if(ESTUP_RX.test(t)) return 'Estupefacientes'; if(PSICO_RX.test(t)) return 'Psicotrópicos'; return ''; }
+var DESC_RX=/lapicera de administracion|dispensador|jeringa|aguja|cateter|guante|gasa|aposito|barbijo|equipo para|sonda|canula|tubo de (extraccion|ensayo)|lanceta|tiras? reactivas?|venda|algodon|preservativo|termometro|colector|bajalengua|espatula|especulo|bisturi|papel kraft|cinta (adhesiva|control)|portaobjeto|^frasco (para|de \d+ ?ml)|pinza|cepillo|test rapido|reflectometro|aerocamara|aerospacer|mascara para|camara espaciadora|agua oxigenada|alcohol (70|96|puro|en gel|etilico)|panal|apositos|tela adhesiva|cofia|camisolin|compresa|electrodo|guia|llave de tres|tapon|recipiente/;
+function progOf(txt){
+  var o=norm(txt); if(!o) return '';
+  if(/remediar/.test(o)) return 'Remediar';
+  if(/tbc|tuberc/.test(o)) return 'TBC';
+  if(/\bvih\b|\bhiv\b|sida|its\b/.test(o)) return 'VIH';
+  return '';
+}
+function classify(tipoTxt,desc,gen,origen){
+  var n=norm(tipoTxt), base;
+  if(/desc|insumo|sanit|medico quir|material/.test(n)) base='Descartable';
+  else if(/^med|farm|droga|inyect|oral/.test(n)) base='Medicamento';
+  else base = DESC_RX.test(norm(desc+' '+gen)) ? 'Descartable' : 'Medicamento';
+  if(base==='Medicamento'){
+    var po=progOf(origen); if(po) return po;
+    var t=norm(gen+' '+desc);
+    if(PROG.TBC.test(t)) return 'TBC';
+    if(PROG.VIH.test(t)) return 'VIH';
+    if(/remediar|\(rem\)|\brem\.?$/.test(t)) return 'Remediar';
+  }
+  return base;
+}
+var FORMAS=[
+  ['Gotas',/\b(gotas|gts|colirio\w*|oft|oftalm\w*|otic[oa]s?|nasal\w*)\b/],
+  ['Líquidos orales',/\b(jarabe|jbe|solucion oral|sol oral|suspension oral|susp oral)\b/],
+  ['Inyectables',/\b(amp|ampolla|ampollas|iny|inyectable|vial|viales|fco ?amp|f\.?a|frasco ampolla|jeringa prellenada|prellenada|lapicera|cartucho|ev|im|sc|e\.v|i\.m)\b/],
+  ['Óvulos y supositorios',/\b(ovulo|ovulos|supositorio|supositorios|sup|vaginal|vag|rectal)\b/],
+  ['Inhalatorios',/\b(aerosol|aer|inhal|inhalador|inh|puff|nebuliz|respule|turbuhaler|diskus|polvo para inhalar)\b/],
+  ['Cremas y tópicos',/\b(crema|cr|pomada|unguento|ung|gel|locion|topic|topico|topica|shampoo|champu|jabon|parche|parches|solucion topica|sol topica|tintura)\b/],
+  ['Líquidos orales',/\b(jarabe|jbe|suspension|susp|gotas|gts|solucion oral|sol oral|sol\. oral|elixir|emulsion|liquido)\b/],
+  ['Comprimidos y cápsulas',/\b(comp|comprimido|comprimidos|cpr|capsula|capsulas|caps|cap|gragea|grageas|tableta|tabletas|tab|sobre|sobres|polvo|granulado|masticable|sublingual|dispersable)\b/]
+];
+function formaOf(desc){
+  var d=norm(desc);
+  for(var i=0;i<FORMAS.length;i++) if(FORMAS[i][1].test(d)) return FORMAS[i][0];
+  return 'Otras formas';
+}
+var FORMA_ORDER=['Comprimidos y cápsulas','Líquidos orales','Inyectables','Inhalatorios','Gotas','Cremas y tópicos','Óvulos y supositorios','Otras formas'];
+
+/* ---------- armado de artículos ---------- */
+function buildItems(){
+  var items=[];
+  if(state.raw){
+    var m=state.map, map=new Map(), deps={};
+    state.raw.data.forEach(function(r){
+      var desc=m.desc>=0?String(r[m.desc]).trim():'', code=m.code>=0?String(r[m.code]).trim():'', gen=m.gen>=0?String(r[m.gen]).trim():'';
+      if(!desc && !code && !gen) return;
+      if(/^total/.test(norm(desc||code))) return;
+      var dep=m.dep>=0?String(r[m.dep]).trim():'', origen=m.origen>=0?String(r[m.origen]).trim():'';
+      if(dep) deps[dep]=(deps[dep]||0)+1;
+      if(state.dep && dep && dep!==state.dep) return;
+      var pg=progOf(origen), key=(code||desc||gen).toUpperCase()+(pg?'|'+pg:'');
+      var it=map.get(key);
+      if(!it){
+        it={key:key,code:code,desc:desc||gen,gen:gen,tipoTxt:m.tipo>=0?String(r[m.tipo]).trim():'',origen:origen,stock:null,lotes:[]};
+        map.set(key,it); items.push(it);
+      }
+      var s=m.stock>=0?parseNum(r[m.stock]):null;
+      if(s!=null) it.stock=(it.stock||0)+s;
+      var lote=m.lote>=0?String(r[m.lote]).trim():'', venc=m.venc>=0?fmtDate(r[m.venc]):'';
+      if(lote||venc){ var lt=(lote?'L. '+lote:'')+(venc?(lote?' · ':'')+'vto '+venc:''); if(it.lotes.indexOf(lt)<0) it.lotes.push(lt); }
+    });
+    state.deps=Object.keys(deps).sort(function(a,b){return deps[b]-deps[a];});
+  } else state.deps=[];
+  state.extra.forEach(function(x){ items.push({key:x.key,code:'',desc:x.desc,gen:'',tipoTxt:'',stock:null,lotes:[],manual:true,tipoFix:x.tipo}); });
+  items.forEach(function(it){
+    it.tipoAuto = it.tipoFix || classify(it.tipoTxt,it.desc,it.gen,it.origen||'');
+    it.isRem = progOf(it.origen||'')==='Remediar' || /remediar/.test(norm(it.desc+' '+it.gen));
+    it.ctrlAuto = it.tipoAuto==='Descartable' ? '' : ctrlOf(it.desc,it.gen);
+    var co=state.ctrlOv[it.key];
+    it.ctrl = co===false ? '' : (co===true ? (it.ctrlAuto||'Control interno') : it.ctrlAuto);
+    if(it.ctrl) it.tipoAuto='Controlado';
+    it.tipo = state.tipoOv[it.key] || it.tipoAuto;
+    if(it.tipo!=='Controlado') it.ctrl='';
+    it.formaAuto = formaOf(it.desc+' '+it.gen);
+    var fo=state.formaOv[it.key]; if(fo && /^Gotas /.test(fo)) fo='Gotas';
+    it.forma = it.tipo==='Descartable' ? '' : (fo || it.formaAuto);
+    it.tipoBase = it.tipo;
+    if(state.tras[it.key]) it.tipo='Enfermeria';
+  });
+  state.items=items;
+}
+function displayName(it){ return (state.sortBy==='gen' && it.gen) ? it.gen : it.desc; }
+
+/* orden: alfabético, con el orden de estante guardado encima */
+function orderKey(g){ return g+'|'+state.sortBy+'|'+(state.byForma?'f':'n'); }
+function groupItems(g){
+  var arr=state.items.filter(function(it){return it.tipo===g;});
+  arr.sort(function(a,b){
+    if(g==='Enfermeria'){ var ea=SEL_GROUPS.indexOf(a.tipoBase), eb=SEL_GROUPS.indexOf(b.tipoBase); if(ea!==eb) return ea-eb; }
+    if(g==='Controlado'){ var ca=CTRL_ORDER.indexOf(a.ctrl), cb=CTRL_ORDER.indexOf(b.ctrl); if(ca!==cb) return ca-cb; }
+    if(g!=='Descartable'){ var fa=FORMA_ORDER.indexOf(a.forma), fb=FORMA_ORDER.indexOf(b.forma); if(fa!==fb) return fa-fb; }
+    return collator.compare(sortKey(displayName(a)),sortKey(displayName(b))) || collator.compare(sortKey(a.desc),sortKey(b.desc));
+  });
+  var mem=orderMem[orderKey(g)];
+  if(mem && mem.length){
+    var idx={}; mem.forEach(function(k,i){ idx[k]=i; });
+    var known=arr.filter(function(it){return idx[it.key]!=null;}).sort(function(a,b){return idx[a.key]-idx[b.key];});
+    var out=known.slice();
+    // los artículos nuevos se insertan después del que les precede alfabéticamente
+    arr.forEach(function(it,i){
+      if(idx[it.key]!=null) return;
+      var prev=null; for(var j=i-1;j>=0;j--){ if(idx[arr[j].key]!=null || out.indexOf(arr[j])>=0){ prev=arr[j]; break; } }
+      var at = prev ? out.indexOf(prev)+1 : 0; out.splice(at,0,it);
+    });
+    arr=out;
+  }
+  return arr;
+}
+
+/* ---------- conteo ---------- */
+function countOf(it){ var v=state.counts[it.key]; return (v===undefined||v===null||v==='')?null:v; }
+function diffOf(it){ var c=countOf(it); if(c==null) return null; return c-(it.stock||0); }
+function statusOf(it){
+  var c=countOf(it); if(c==null) return 'pend';
+  if(it.manual) return 'man';
+  var d=diffOf(it); return d===0?'ok':(d<0?'falta':'sobra');
+}
+function groupStats(g){
+  var arr=state.items.filter(function(it){return it.tipo===g;}), s={n:arr.length,done:0,ok:0,falta:0,sobra:0,man:0};
+  arr.forEach(function(it){ var st=statusOf(it); if(st!=='pend') s.done++; if(st==='ok') s.ok++; if(st==='falta') s.falta++; if(st==='sobra') s.sobra++; if(st==='man') s.man++; });
+  return s;
+}
+
+/* ---------- render ---------- */
+function render(){
+  var has=state.items.length>0;
+  $('work').style.display=has?'block':'none';
+  document.body.classList.toggle('blind',state.blind && state.mode==='count');
+  if(!has) return;
+  var present=GROUPS.filter(function(g){ return state.items.some(function(it){return it.tipo===g;}); });
+  if(present.indexOf(state.tab)<0) state.tab=present[0];
+  $('tabs').innerHTML=present.map(function(g){ var s=groupStats(g); return '<button class="tab'+(g===state.tab?' on':'')+'" data-tab="'+g+'">'+GNAME[g]+'<span class="c">'+s.done+'/'+s.n+'</span></button>'; }).join('');
+  $('sortBy').value=state.sortBy; $('blind').checked=state.blind; $('fShow').value=state.show;
+  renderChips();
+  $('btnMode').textContent = state.mode==='count' ? 'Acomodar orden' : 'Volver a contar';
+  $('btnMode').classList.toggle('primary',state.mode==='arrange');
+  if(state.deps && state.deps.length>1){
+    $('depWrap').style.display='';
+    $('dep').innerHTML='<option value="">Todos</option>'+state.deps.map(function(d){return '<option'+(d===state.dep?' selected':'')+'>'+esc(d)+'</option>';}).join('');
+  } else $('depWrap').style.display='none';
+  renderStats(); renderList(); renderTras();
+}
+function chipKey(it){ return it.tipo==='Enfermeria' ? GNAME[it.tipoBase] : it.tipo==='Controlado' ? it.ctrl : it.forma; }
+function secLabel(it){ return it.tipo==='Enfermeria' ? GNAME[it.tipoBase]+(it.forma?' · '+it.forma:'') : it.tipo==='Controlado' ? it.ctrl+' · '+it.forma : it.forma; }
+function renderChips(){
+  if(state.tab==='Descartable'){ $('chips').innerHTML=''; $('chips').style.display='none'; return; }
+  var arr=state.items.filter(function(it){return it.tipo===state.tab;}), c={}, d={};
+  arr.forEach(function(it){ var k=chipKey(it); c[k]=(c[k]||0)+1; if(statusOf(it)!=='pend') d[k]=(d[k]||0)+1; });
+  var fs=(state.tab==='Enfermeria'?SEL_GROUPS.map(function(g){return GNAME[g];}):state.tab==='Controlado'?CTRL_ORDER:FORMA_ORDER).filter(function(f){return c[f];});
+  if(state.forma && !c[state.forma]) state.forma='';
+  $('chips').style.display='';
+  $('chips').innerHTML='<button class="chip'+(state.forma?'':' on')+'" data-f="">'+(state.tab==='Controlado'||state.tab==='Enfermeria'?'Todos':'Todas las formas')+'</button>'+fs.map(function(f){
+    var full=(d[f]||0)===c[f];
+    return '<button class="chip'+(state.forma===f?' on':'')+(full?' full':'')+'" data-f="'+esc(f)+'">'+esc(f)+'<span class="c">'+(d[f]||0)+'/'+c[f]+'</span></button>';
+  }).join('');
+}
+function renderStats(){
+  var s=groupStats(state.tab), pct=s.n?Math.round(s.done*100/s.n):0;
+  $('progBar').style.width=pct+'%';
+  var html='<span><b>'+s.done+'</b> de '+s.n+' contados ('+pct+'%)</span>';
+  if(!state.blind) html+='<span class="pill p-ok">'+s.ok+' coinciden</span><span class="pill p-bad">'+s.falta+' con faltante</span><span class="pill p-warn">'+s.sobra+' con sobrante</span>';
+  if(s.man) html+='<span class="pill p-man">'+s.man+' agregados</span>';
+  $('stats').innerHTML=html;
+  var tabBtn=document.querySelector('.tab.on .c'); if(tabBtn) tabBtn.textContent=s.done+'/'+s.n;
+  renderChips();
+}
+function rowStateHTML(it){
+  var d=diffOf(it), st=statusOf(it);
+  if(st==='pend') return '<span class="muted">—</span>';
+  if(st==='man') return '<span class="pill p-man">nuevo</span>';
+  if(d===0) return '<span style="color:var(--ok)">✓ 0</span>';
+  return '<span style="color:'+(d<0?'var(--bad)':'var(--warn)')+'">'+(d>0?'+':'')+fmt(d)+'</span>';
+}
+function subHTML(it){
+  var parts=[];
+  var dn=displayName(it);
+  if(it.desc && norm(it.desc)!==norm(dn)) parts.push(esc(it.desc));
+  if(it.lotes.length) parts.push(esc(it.lotes.slice(0,3).join(' | '))+(it.lotes.length>3?' (+'+(it.lotes.length-3)+')':''));
+  if(it.manual) parts.push('agregado a mano');
+  var cod = it.code ? '<span class="codsub">Cód. <span class="code">'+esc(it.code)+'</span>'+(parts.length?' · ':'')+'</span>' : '';
+  return (cod||parts.length) ? '<div class="sub">'+cod+parts.join(' · ')+'</div>' : '';
+}
+function renderList(){
+  var arr=groupItems(state.tab), q=norm(state.q), arrange=state.mode==='arrange';
+  var html=arrange
+    ? '<div class="hdr arr"><span>N°</span><span class="cod">Código</span><span>Artículo</span><span class="tsel">Grupo / forma</span><span style="text-align:right">Mover</span></div>'
+    : '<div class="hdr"><span>N°</span><span class="cod">Código</span><span>Artículo</span><span class="num stk">Sistema</span><span class="num">Contado</span><span class="num diff">Dif.</span></div>';
+  var lastF=null, shown=0;
+  arr.forEach(function(it,i){
+    var st=statusOf(it);
+    if(!arrange){
+      if(state.show==='pend' && st!=='pend') return;
+      if(state.show==='diff' && !(st==='falta'||st==='sobra'||st==='man')) return;
+    }
+    if(state.forma && state.tab!=='Descartable' && chipKey(it)!==state.forma) return;
+    var hit = q && norm(displayName(it)+' '+it.desc+' '+it.code).indexOf(q)>=0;
+    if(q && !hit) return;
+    if(state.tab!=='Descartable' && secLabel(it)!==lastF){ lastF=secLabel(it); html+='<div class="sect">'+esc(lastF)+'</div>'; }
+    shown++;
+    var tags=(it.isRem&&it.tipo!=='Remediar'?' <span class="pill p-man">Remediar</span>':'')+(it.ctrl==='Control interno'?' <span class="pill p-warn">control interno</span>':'');
+    var trasB='<button class="tras'+(state.tras[it.key]?' on':'')+'" data-tras="'+state.items.indexOf(it)+'" title="'+(state.tras[it.key]?'Quitar del traslado a enfermería':'Trasladar a enfermería')+'">🏥</button>';
+    var lock = it.tipoBase==='Descartable' ? trasB : trasB+'<button class="lock'+(it.ctrl?' on':'')+'" data-lock="'+state.items.indexOf(it)+'" title="'+(it.ctrl?'Quitar de Controlados':'Marcar para controlar')+'">'+(it.ctrl?'🔒':'🔓')+'</button>';
+    var name='<div class="nmw">'+lock+'<div><div class="nm">'+esc(displayName(it))+tags+'</div>'+subHTML(it)+'</div></div>';
+    if(arrange){
+      html+='<div class="item arr" data-k="'+esc(it.key)+'"><span class="pos">'+(i+1)+'</span><span class="cod">'+esc(it.code||'—')+'</span>'+name+
+        '<span class="tsel"><select data-tipo="'+esc(it.key)+'" title="Grupo">'+SEL_GROUPS.map(function(g){return '<option value="'+g+'"'+(g===it.tipoBase?' selected':'')+'>'+GNAME[g]+'</option>';}).join('')+'</select>'+
+        (it.tipoBase==='Descartable'?'':'<select data-forma="'+esc(it.key)+'" title="Forma farmacéutica">'+FORMA_ORDER.map(function(f){return '<option'+(f===it.forma?' selected':'')+'>'+esc(f)+'</option>';}).join('')+'</select>')+'</span>'+
+        '<span class="mv"><button class="sm" data-up="'+esc(it.key)+'"'+(i===0?' disabled':'')+' title="Subir">↑</button><button class="sm" data-dn="'+esc(it.key)+'"'+(i===arr.length-1?' disabled':'')+' title="Bajar">↓</button></span></div>';
+    } else {
+      var c=countOf(it);
+      html+='<div class="item'+(hit?' hit':'')+'" data-k="'+esc(it.key)+'"><span class="pos">'+(i+1)+'</span><span class="cod">'+esc(it.code||'—')+'</span>'+name+
+        '<span class="num stk">'+(it.manual?'<span class="muted">—</span>':fmt(it.stock||0))+'</span>'+
+        '<span class="cnt"><input type="text" inputmode="decimal" autocomplete="off" data-c="'+esc(it.key)+'" value="'+(c==null?'':c)+'" class="'+(c==null?'':'done')+'" aria-label="Contado de '+esc(displayName(it))+'"></span>'+
+        '<span class="diff" data-d="'+esc(it.key)+'">'+rowStateHTML(it)+'</span></div>';
+    }
+  });
+  if(!shown) html+='<div class="empty">'+(q?'Ningún artículo coincide con la búsqueda.':(state.show==='pend'?'¡Todo contado en este grupo!':state.show==='diff'?'No hay diferencias en este grupo.':'Sin artículos.'))+'</div>';
+  $('list').innerHTML=html;
+}
+
+/* ---------- eventos ---------- */
+$('file').addEventListener('change',async function(e){
+  var f=e.target.files[0]; if(!f) return; e.target.value='';
+  $('errBox').innerHTML='';
+  try{
+    var t=await readFile(f), m=guessCode(t,detect(t.headers));
+    if(m.desc<0 && m.code<0 && m.gen<0) throw new Error('No encuentro la columna con el nombre del artículo. Revisá que sea el Listado de Stock.');
+    var keep = state.items.length && Object.keys(state.counts).length;
+    var doLoad=function(resetCounts){
+      state.raw=t; state.map=m; state.fileName=f.name; state.dep='';
+      if(resetCounts){ state.counts={}; state.extra=[]; state.startedAt=Date.now(); }
+      buildItems(); persist(); renderFileInfo(); render();
+      toast(state.items.length+' artículos cargados');
+    };
+    if(keep) confirmBox('¿Empezar un conteo nuevo?','Ya hay un conteo en curso. Confirmar borra lo contado y empieza de cero con este listado. Cancelar carga el listado nuevo pero conserva lo contado.',function(){doLoad(true);}), $('cNo').onclick=function(){ $('mConfirm').classList.remove('on'); doLoad(false); };
+    else doLoad(true);
+  }catch(err){ $('errBox').innerHTML='<div class="err">No se pudo leer “'+esc(f.name)+'”. '+esc(err.message||'')+'</div>'; }
+});
+function renderFileInfo(){
+  if(!state.raw){ $('fileInfo').textContent= state.fileName? state.fileName : 'Todavía no cargaste ningún listado.'; $('mapBox').style.display='none'; return; }
+  var m=state.map, miss=[];
+  if(m.stock<0) miss.push('stock');
+  var withStock=state.items.filter(function(it){return !it.manual && it.stock;}).length;
+  $('fileInfo').innerHTML='<b>'+esc(state.fileName)+'</b> · '+state.items.length+' artículos'+(m.stock>=0?' · stock tomado de la columna <b>“'+esc(state.raw.headers[m.stock])+'”</b>':'')+(m.code>=0?' · código de la columna <b>“'+esc(state.raw.headers[m.code])+'”</b>':' · <span style="color:var(--bad)">sin columna de código</span>')+(state.startedAt?' · conteo iniciado '+new Date(state.startedAt).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'');
+  $('errBox').innerHTML = miss.length ? '<div class="err">No encontré la columna de <b>stock</b>, por eso no se ve el stock del sistema. Abrí “Columnas detectadas” y elegí en <b>Stock</b> la columna con la cantidad (la fraccionada, en unidades).</div>'
+    : (!withStock && state.items.length ? '<div class="err">La columna “'+esc(state.raw.headers[m.stock])+'” no tiene cantidades. Abrí “Columnas detectadas” y elegí en <b>Stock</b> la columna correcta.</div>' : '');
+  if(m.code<0) $('errBox').innerHTML+='<div class="err">No encontré la columna del <b>código</b>. Abrí “Columnas detectadas” y elegí en <b>Código</b> la columna B (o la que tenga el código).</div>';
+  if(miss.length || !withStock || m.code<0) $('mapBox').open=true;
+  $('mapBox').style.display='';
+  $('mapTable').innerHTML=['desc','gen','code','stock','tipo','origen','dep','lote','venc'].map(function(f){
+    return '<label>'+FLABEL[f]+'<select data-map="'+f+'"><option value="-1">(ninguna)</option>'+state.raw.headers.map(function(h,i){return '<option value="'+i+'"'+(m[f]===i?' selected':'')+'>'+esc(h)+'</option>';}).join('')+'</select></label>';
+  }).join('');
+}
+$('mapTable').addEventListener('change',function(e){
+  var f=e.target.getAttribute('data-map'); if(!f) return;
+  state.map[f]=+e.target.value; buildItems(); persist(); renderFileInfo(); render();
+});
+$('btnSample').addEventListener('click',function(){
+  var go=function(){
+    var H=['Código','Descripción','Genérico','Tipo de artículo','Origen','Stock'];
+    var D=[
+      ['1001','ENALAPRIL 10 MG COMPRIMIDOS','Enalapril','Medicamento','Compra',420],['1002','AMOXICILINA 500 MG CAPSULAS','Amoxicilina','Medicamento','Compra',310],
+      ['1003','AMOXICILINA 250 MG/5 ML SUSPENSION','Amoxicilina','Medicamento','Compra',38],['1004','METFORMINA 850 MG COMPRIMIDOS','Metformina','Medicamento','Programa Remediar',900],
+      ['1005','IBUPROFENO 400 MG COMPRIMIDOS','Ibuprofeno','Medicamento','Compra',640],['1006','IBUPROFENO 100 MG/5 ML SUSPENSION','Ibuprofeno','Medicamento','Compra',55],
+      ['1007','LOSARTAN 50 MG COMPRIMIDOS','Losartán','Medicamento','Compra',780],['1008','ATENOLOL 50 MG COMPRIMIDOS','Atenolol','Medicamento','Programa Remediar',260],
+      ['1009','SALBUTAMOL AEROSOL 100 MCG','Salbutamol','Medicamento','Compra',44],['1010','BUDESONIDE AEROSOL 200 MCG','Budesonide','Medicamento','Compra',21],
+      ['1011','INSULINA NPH 100 UI/ML VIAL','Insulina humana NPH','Medicamento','Compra',30],['1012','DICLOFENAC 75 MG AMPOLLA','Diclofenac','Medicamento','Compra',90],
+      ['1013','BETAMETASONA CREMA 0,05%','Betametasona','Medicamento','Compra',18],['1014','CLOTRIMAZOL OVULOS 100 MG','Clotrimazol','Medicamento','Compra',24],
+      ['1015','PARACETAMOL 500 MG COMPRIMIDOS','Paracetamol','Medicamento','Programa Remediar',1200],['1016','HIDROCLOROTIAZIDA 25 MG COMPRIMIDOS','Hidroclorotiazida','Medicamento','Compra',350],
+      ['1017','LEVOTIROXINA 50 MCG COMPRIMIDOS','Levotiroxina','Medicamento','Compra',300],['1018','SALES DE REHIDRATACION ORAL SOBRES','Sales de rehidratación oral','Medicamento','Compra',150],
+      ['1019','ISONIAZIDA 300 MG COMPRIMIDOS','Isoniazida','Medicamento','Compra',120],['1020','RIFAMPICINA 300 MG CAPSULAS','Rifampicina','Medicamento','Compra',80],
+      ['1021','TENOFOVIR/LAMIVUDINA/DOLUTEGRAVIR COMPRIMIDOS','Tenofovir + lamivudina + dolutegravir','Medicamento','Compra',90],
+      ['2001','JERINGA 5 ML DESCARTABLE','','Descartable','Compra',600],['2002','AGUJA 25G X 5/8','','Descartable','Compra',800],
+      ['2003','AGUJA PARA LAPICERA DE INSULINA 4 MM','','Descartable','Compra',400],['2004','TIRAS REACTIVAS PARA GLUCEMIA','','Descartable','Compra',500],
+      ['2005','LANCETAS DESCARTABLES','','Descartable','Compra',700],['2006','GASA ESTERIL 10 X 10','','Descartable','Compra',250],
+      ['2007','AEROCAMARA ADULTO','','Descartable','Compra',12],['2008','GUANTES DE EXAMINACION TALLE M','','Descartable','Compra',30],['2009','ALCOHOL 70% X 1 L','','Descartable','Compra',8]
+    ,
+      ['1001','ENALAPRIL 10 MG COMPRIMIDOS','Enalapril','Medicamento','Programa Remediar',300],['1022','AMOXICILINA 500 MG COMPRIMIDOS','Amoxicilina','Medicamento','Programa Remediar',210],['1023','SALBUTAMOL AEROSOL 100 MCG','Salbutamol','Medicamento','Programa Remediar',25]
+    ,['1030','CLONAZEPAM 2 MG COMPRIMIDOS','Clonazepam','Medicamento','Compra',180],['1031','DIAZEPAM 10 MG AMPOLLA','Diazepam','Medicamento','Compra',20],['1032','MORFINA 10 MG AMPOLLA','Morfina','Medicamento','Compra',15],['1033','TRAMADOL 50 MG CAPSULAS','Tramadol','Medicamento','Compra',90],['1034','CLONAZEPAM 0,5 MG COMPRIMIDOS REMEDIAR','Clonazepam','Medicamento','Programa Remediar',120]
+    ];
+    var t={headers:H,data:D};
+    state.raw=t; state.map=detect(H); state.fileName='Ejemplo (datos ficticios)'; state.dep=''; state.counts={}; state.extra=[]; state.startedAt=Date.now();
+    buildItems(); persist(); renderFileInfo(); render(); toast('Datos de ejemplo cargados');
+  };
+  if(state.items.length && Object.keys(state.counts).length) confirmBox('¿Cargar el ejemplo?','Se borra el conteo en curso.',go); else go();
+});
+$('btnHelp').onclick=function(){ $('helpCard').style.display=$('helpCard').style.display==='none'?'block':'none'; };
+$('btnHelpClose').onclick=function(){ $('helpCard').style.display='none'; };
+$('tabs').addEventListener('click',function(e){ var b=e.target.closest('[data-tab]'); if(!b) return; state.tab=b.getAttribute('data-tab'); state.forma=''; persist(); render(); window.scrollTo(0,0); });
+$('q').addEventListener('input',function(){ state.q=this.value; renderList(); });
+$('q').addEventListener('keydown',function(e){ if(e.key==='Enter'){ var i=document.querySelector('#list input[data-c]'); if(i){ i.focus(); i.select(); } } });
+$('fShow').onchange=function(){ state.show=this.value; renderList(); };
+$('sortBy').onchange=function(){ state.sortBy=this.value; persist(); renderList(); };
+$('chips').addEventListener('click',function(e){ var b=e.target.closest('[data-f]'); if(!b) return; state.forma=b.getAttribute('data-f'); renderChips(); renderList(); });
+$('blind').onchange=function(){ state.blind=this.checked; persist(); render(); };
+$('dep').onchange=function(){ state.dep=this.value; buildItems(); persist(); render(); };
+$('btnMode').onclick=function(){ state.mode=state.mode==='count'?'arrange':'count'; render(); };
+
+$('list').addEventListener('input',function(e){
+  var k=e.target.getAttribute('data-c'); if(!k) return;
+  var v=e.target.value.trim();
+  if(v===''){ delete state.counts[k]; }
+  else { var n=parseNum(v); if(n==null){ e.target.style.borderColor='var(--bad)'; return; } state.counts[k]=n; }
+  e.target.style.borderColor=''; e.target.classList.toggle('done',v!=='');
+  var it=state.items.find(function(x){return x.key===k;});
+  var d=document.querySelector('[data-d="'+CSS.escape(k)+'"]'); if(d&&it) d.innerHTML=rowStateHTML(it);
+  renderStats(); persist();
+  if(state.tras[k] && state.trasQty[k]===undefined) renderTras();
+});
+$('list').addEventListener('keydown',function(e){
+  if(!e.target.getAttribute('data-c')) return;
+  if(e.key==='Enter'||e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();
+    var ins=[].slice.call(document.querySelectorAll('#list input[data-c]')), i=ins.indexOf(e.target);
+    var nx=ins[i+(e.key==='ArrowUp'?-1:1)];
+    if(nx){ nx.focus(); nx.select(); nx.scrollIntoView({block:'center',behavior:'smooth'}); }
+    else if(state.show!=='all') renderList();
+  }
+});
+$('list').addEventListener('change',function(e){
+  var fk=e.target.getAttribute('data-forma');
+  if(fk){
+    var fi=state.items.find(function(x){return x.key===fk;});
+    if(fi && e.target.value===fi.formaAuto) delete state.formaOv[fk]; else state.formaOv[fk]=e.target.value;
+    buildItems(); persist(); render(); toast('Forma: '+e.target.value); return;
+  }
+  var k=e.target.getAttribute('data-tipo'); if(!k) return;
+  var it=state.items.find(function(x){return x.key===k;}), v=e.target.value;
+  if(v==='Controlado'){ delete state.tipoOv[k]; if(!(it&&it.ctrlAuto)) state.ctrlOv[k]=true; else delete state.ctrlOv[k]; }
+  else {
+    if(it && it.ctrl) state.ctrlOv[k]=false;
+    state.tipoOv[k]=v;
+    buildItems(); var it2=state.items.find(function(x){return x.key===k;}); if(it2 && it2.tipoAuto===v && it2.tipoBase===v) delete state.tipoOv[k];
+  }
+  buildItems(); persist(); render(); toast('Movido a '+GNAME[e.target.value]);
+});
+$('list').addEventListener('click',function(e){
+  var tb=e.target.closest('[data-tras]');
+  if(tb){
+    var ti=state.items[+tb.getAttribute('data-tras')]; if(!ti) return; var tk=ti.key;
+    if(state.tras[tk]){ delete state.tras[tk]; delete state.trasQty[tk]; toast('Quitado del traslado'); } else { state.tras[tk]=true; toast((ti?displayName(ti):'Artículo')+' → enfermería'); }
+    buildItems(); persist(); render(); return;
+  }
+  var lk=e.target.closest('[data-lock]');
+  if(lk){
+    var it=state.items[+lk.getAttribute('data-lock')]; if(!it) return; var key=it.key;
+    if(it.ctrl){ state.ctrlOv[key]=false; if(state.tipoOv[key]==='Controlado') delete state.tipoOv[key]; toast(displayName(it)+' salió de Controlados'); }
+    else { if(it.ctrlAuto) delete state.ctrlOv[key]; else state.ctrlOv[key]=true; delete state.tipoOv[key]; toast(displayName(it)+' pasó a Controlados'); }
+    buildItems(); persist(); render(); return;
+  }
+  var up=e.target.getAttribute('data-up'), dn=e.target.getAttribute('data-dn'); if(!up&&!dn) return;
+  var arr=groupItems(state.tab).map(function(it){return it.key;}), k=up||dn, i=arr.indexOf(k), j=up?i-1:i+1;
+  if(i<0||j<0||j>=arr.length) return;
+  var t=arr[i]; arr[i]=arr[j]; arr[j]=t;
+  orderMem[orderKey(state.tab)]=arr; persistOrder(); renderList();
+  var b=document.querySelector('[data-'+(up?'up':'dn')+'="'+CSS.escape(k)+'"]'); if(b && !b.disabled) b.focus();
+});
+$('btnResetOrder').onclick=function(){
+  confirmBox('¿Volver al orden alfabético?','Se descarta el orden de estante guardado para '+GNAME[state.tab]+' con el criterio actual.',function(){ delete orderMem[orderKey(state.tab)]; persistOrder(); renderList(); toast('Orden alfabético restablecido'); });
+};
+$('btnNew').onclick=function(){
+  confirmBox('¿Empezar un conteo nuevo?','Se borran todas las cantidades contadas y los artículos agregados a mano. El listado, la clasificación y el orden de los estantes se mantienen.',function(){
+    state.counts={}; state.extra=[]; state.trasQty={}; state.startedAt=Date.now(); buildItems(); persist(); renderFileInfo(); render(); toast('Conteo nuevo iniciado');
+  });
+};
+$('btnAdd').onclick=function(){
+  $('aTipo').innerHTML=GROUPS.map(function(g){return '<option value="'+g+'"'+(g===state.tab?' selected':'')+'>'+GNAME[g]+'</option>';}).join('');
+  $('aName').value=''; $('aCnt').value=''; $('mAdd').classList.add('on'); setTimeout(function(){$('aName').focus();},50);
+};
+$('aCancel').onclick=function(){ $('mAdd').classList.remove('on'); };
+$('aOk').onclick=function(){
+  var n=$('aName').value.trim(); if(!n){ $('aName').focus(); return; }
+  var key='MANUAL:'+n.toUpperCase()+':'+Date.now();
+  state.extra.push({key:key,desc:n,tipo:$('aTipo').value});
+  var c=parseNum($('aCnt').value); if(c!=null) state.counts[key]=c;
+  state.tab=$('aTipo').value; $('mAdd').classList.remove('on'); buildItems(); persist(); render(); toast('Artículo agregado');
+};
+
+/* ---------- traslado a enfermería ---------- */
+var PACIENTE_RX=/tiras? reactiv|lanceta|aguja.*(lapicera|insulina|pen)|(lapicera|insulina|pen).*aguja|aeroca|aeroma|aerospacer|camara espaciadora|mascara para aero/;
+var TRAS_ORDER=['Medicamento','Remediar','Controlado','TBC','VIH','Descartable'];
+function trasItems(){ return groupItems('Enfermeria'); }
+function trasQty(it){ var q=state.trasQty[it.key]; if(q!==undefined) return q; var c=countOf(it); return c!=null?c:(it.stock||0); }
+function renderTras(){
+  var arr=trasItems();
+  var show = state.tab==='Enfermeria' || state.tab==='Descartable';
+  $('trasCard').style.display = (show && state.items.length) ? '' : 'none';
+  $('trasFull').style.display = state.tab==='Enfermeria' ? '' : 'none';
+  $('trasBtns').style.display = state.tab==='Enfermeria' ? '' : 'none';
+  $('btnTrasSug').style.display = state.tab==='Descartable' ? '' : 'none';
+  $('trasHint').style.display = state.tab==='Enfermeria' ? 'none' : '';
+  $('trasHint').innerHTML = arr.length ? arr.length+' artículos marcados con 🏥: están en la pestaña <b>Enfermería (traslado)</b>.' : 'Marcá con 🏥 lo que va a enfermería: pasa a la pestaña <b>Enfermería (traslado)</b>.';
+  $('trasTitle').textContent='Traslado a enfermería ('+arr.length+')';
+  if(!arr.length){ $('trasList').innerHTML='<div class="small muted">Todavía no marcaste nada para trasladar.</div>'; return; }
+  $('trasList').innerHTML='<table class="tt"><thead><tr><th>Código</th><th>Artículo</th><th>Grupo</th><th style="text-align:right">Sistema</th><th style="text-align:right">Contado</th><th style="text-align:right">A trasladar</th><th></th></tr></thead><tbody>'+
+    arr.map(function(it){ var c=countOf(it); return '<tr><td><span class="code">'+esc(it.code||'—')+'</span></td><td>'+esc(it.desc)+'</td><td class="small">'+GNAME[it.tipoBase]+'</td><td class="n">'+fmt(it.stock||0)+'</td><td class="n">'+(c==null?'<span class="muted">—</span>':fmt(c))+'</td><td class="n"><input type="text" inputmode="decimal" data-tq="'+esc(it.key)+'" value="'+trasQty(it)+'"></td><td><button class="sm" data-trasx="'+esc(it.key)+'" title="Quitar">✕</button></td></tr>'; }).join('')+
+    '</tbody></table>';
+}
+$('trasList').addEventListener('input',function(e){
+  var k=e.target.getAttribute('data-tq'); if(!k) return;
+  var v=e.target.value.trim(); if(v===''){ delete state.trasQty[k]; persist(); return; }
+  var n=parseNum(v); if(n==null){ e.target.style.borderColor='var(--bad)'; return; }
+  e.target.style.borderColor=''; state.trasQty[k]=n; persist();
+});
+$('trasList').addEventListener('click',function(e){
+  var k=e.target.getAttribute('data-trasx'); if(!k) return;
+  delete state.tras[k]; delete state.trasQty[k]; buildItems(); persist(); render();
+});
+$('btnTrasSug').onclick=function(){
+  var n=0;
+  state.items.forEach(function(it){ if(it.tipo==='Descartable' && !it.manual && !state.tras[it.key] && !PACIENTE_RX.test(norm(it.desc))){ state.tras[it.key]=true; n++; } });
+  buildItems(); persist(); render();
+  toast(n ? n+' descartables marcados para enfermería. Revisá la lista y quitá los que quedan en farmacia.' : 'No hay descartables nuevos para marcar.');
+};
+function trasRows(){ return trasItems().map(function(it){ return [it.code,it.desc,GNAME[it.tipoBase],it.stock||0,countOf(it)==null?'':countOf(it),trasQty(it)]; }); }
+$('btnTrasCopy').onclick=function(){
+  var rows=trasRows(); if(!rows.length){ toast('No hay artículos para trasladar.'); return; }
+  var lines=['Código\tArtículo\tGrupo\tStock sistema\tContado\tA trasladar'].concat(rows.map(function(r){return r.join('\t');}));
+  navigator.clipboard.writeText(lines.join('\n')).then(function(){ toast(rows.length+' artículos copiados: pegalos en Excel'); },function(){ toast('No se pudo copiar.'); });
+};
+$('btnTrasXls').onclick=function(){
+  var rows=trasRows(); if(!rows.length){ toast('No hay artículos para trasladar.'); return; }
+  if(typeof XLSX==='undefined'){ toast('No se pudo cargar el generador de Excel.'); return; }
+  var aoa=[['Traslado de medicamentos y descartables a enfermería'],['Fecha',new Date().toLocaleDateString('es-AR')],['Origen','Farmacia'],['Destino','Enfermería'],[],['Código','Artículo','Grupo','Stock sistema','Contado','A trasladar','Recibido por']].concat(rows.map(function(r){return r.concat(['']);}));
+  var ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:12},{wch:48},{wch:14},{wch:13},{wch:10},{wch:12},{wch:20}];
+  var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Traslado a enfermería');
+  saveFile('Traslado a enfermeria '+stamp()+'.xlsx',XLSX.write(wb,{bookType:'xlsx',type:'array'}));
+};
+
+/* ---------- exportar ---------- */
+var downloads=null;
+if(window.claude && typeof window.claude.use==='function'){
+  window.claude.use('downloads').then(function(d){ downloads=d; }).catch(function(){});
+}
+function stamp(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+function sheetRows(g,withResult){
+  var arr=groupItems(g), rows=[], lastF=null;
+  var head=withResult?['N°','Artículo','Descripción','Código','Forma','Control','Origen','Lotes / vto','Stock sistema','Contado','Diferencia','Estado']
+                     :['N°','Artículo','Descripción','Código','Forma','Control','Origen','Lotes / vto','Contado','Observaciones'];
+  rows.push(head);
+  arr.forEach(function(it,i){
+    var base=[i+1,displayName(it),it.desc,it.code,it.forma||'',it.ctrl||'',it.origen||(it.isRem?'Remediar':''),it.lotes.join(' | ')];
+    if(withResult){
+      var c=countOf(it), d=diffOf(it), st=statusOf(it);
+      rows.push(base.concat([it.manual?'':(it.stock||0), c==null?'':c, (c==null||it.manual)?'':d, {pend:'Sin contar',ok:'Coincide',falta:'Faltante',sobra:'Sobrante',man:'No figura en sistema'}[st]]));
+    } else rows.push(base.concat(['','']));
+  });
+  return rows;
+}
+async function saveXlsx(withResult){
+  if(typeof XLSX==='undefined'){ toast('No se pudo cargar el generador de Excel.'); return; }
+  var wb=XLSX.utils.book_new();
+  var present=GROUPS.filter(function(g){ return state.items.some(function(it){return it.tipo===g;}); });
+  if(withResult){
+    var res=[['Resumen del conteo de stock'],['Fecha',new Date().toLocaleString('es-AR')],['Listado',state.fileName],[],['Grupo','Artículos','Contados','Coinciden','Con faltante','Con sobrante','No figuran en sistema']];
+    present.forEach(function(g){ var s=groupStats(g); res.push([GNAME[g],s.n,s.done,s.ok,s.falta,s.sobra,s.man]); });
+    res.push([]); res.push(['Diferencias']); res.push(['Grupo','Artículo','Código','Stock sistema','Contado','Diferencia']);
+    present.forEach(function(g){ groupItems(g).forEach(function(it){ var st=statusOf(it); if(st==='falta'||st==='sobra'||st==='man') res.push([GNAME[g],displayName(it)+(it.desc!==displayName(it)?' — '+it.desc:''),it.code,it.manual?'':(it.stock||0),countOf(it),it.manual?'':diffOf(it)]); }); });
+    var ws0=XLSX.utils.aoa_to_sheet(res); ws0['!cols']=[{wch:16},{wch:48},{wch:10},{wch:13},{wch:10},{wch:11},{wch:18}];
+    XLSX.utils.book_append_sheet(wb,ws0,'Resumen');
+  }
+  present.forEach(function(g){
+    var ws=XLSX.utils.aoa_to_sheet(sheetRows(g,withResult));
+    ws['!cols']=withResult?[{wch:5},{wch:34},{wch:40},{wch:9},{wch:20},{wch:15},{wch:16},{wch:24},{wch:12},{wch:10},{wch:10},{wch:18}]
+                          :[{wch:5},{wch:34},{wch:40},{wch:9},{wch:20},{wch:15},{wch:16},{wch:24},{wch:12},{wch:24}];
+    XLSX.utils.book_append_sheet(wb,ws,GNAME[g].slice(0,31));
+  });
+  var tr=trasRows();
+  if(withResult && tr.length){ var wst=XLSX.utils.aoa_to_sheet([['Código','Artículo','Grupo','Stock sistema','Contado','A trasladar']].concat(tr)); wst['!cols']=[{wch:12},{wch:48},{wch:14},{wch:13},{wch:10},{wch:12}]; XLSX.utils.book_append_sheet(wb,wst,'Traslado a enfermería'); }
+  var out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  var name=(withResult?'Resultado conteo stock ':'Planilla conteo stock ')+stamp()+'.xlsx';
+  saveFile(name,out);
+}
+async function saveFile(name,out){
+  if(!IN_CLAUDE){
+    try{
+      var url=URL.createObjectURL(new Blob([out])), a=document.createElement('a');
+      a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); },4000); toast('Archivo descargado');
+    }catch(e){ toast('No se pudo descargar el archivo.'); }
+    return;
+  }
+  if(!downloads){ toast('La descarga no está disponible en esta vista. Abrí el artefacto en claude.ai.'); return; }
+  try{ await downloads.save({filename:name,data:new Blob([out])}); toast('Excel descargado'); }
+  catch(err){ if(err && err.code==='declined') return; if(err && err.code==='rate_limited'){ toast('Esperá un momento y probá de nuevo.'); return; } toast('No se pudo descargar el archivo.'); }
+}
+$('btnSheet').onclick=function(){ saveXlsx(false); };
+$('btnResult').onclick=function(){ saveXlsx(true); };
+$('btnCopy').onclick=function(){
+  var lines=['Grupo\tArtículo\tCódigo\tSistema\tContado\tDiferencia'];
+  GROUPS.forEach(function(g){ groupItems(g).forEach(function(it){ var st=statusOf(it); if(st==='falta'||st==='sobra'||st==='man') lines.push([GNAME[g],displayName(it),it.code,it.manual?'':(it.stock||0),countOf(it),it.manual?'nuevo':diffOf(it)].join('\t')); }); });
+  if(lines.length===1){ toast('No hay diferencias para copiar.'); return; }
+  navigator.clipboard.writeText(lines.join('\n')).then(function(){ toast((lines.length-1)+' diferencias copiadas: pegalas en Excel'); },function(){ toast('No se pudo copiar.'); });
+};
+
+/* ---------- inicio ---------- */
+var saved=lsGet(KEY);
+if(saved && (saved.raw || (saved.extra&&saved.extra.length))){
+  ['fileName','raw','map','counts','tipoOv','formaOv','ctrlOv','tras','trasQty','extra','tab','sortBy','byForma','blind','dep','startedAt'].forEach(function(k){ if(saved[k]!==undefined && saved[k]!==null) state[k]=saved[k]; });
+  if(state.raw && state.map){ state.map=guessCode(state.raw,state.map); } state.byForma=true; state.formaOv=state.formaOv||{}; state.ctrlOv=state.ctrlOv||{}; state.tras=state.tras||{}; state.trasQty=state.trasQty||{}; state.counts=state.counts||{}; state.tipoOv=state.tipoOv||{}; state.extra=state.extra||[];
+  buildItems();
+  if(saved.savedAt) $('saveInfo').textContent='Conteo recuperado de este navegador (último cambio '+new Date(saved.savedAt).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+').';
+}
+renderFileInfo(); render(); renderChanges(); startCfg();
+})();
+</script>
+</body>
+</html>

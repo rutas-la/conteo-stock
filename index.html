@@ -80,6 +80,10 @@ details summary{cursor:pointer;font-weight:600}
 .lock{border:1px solid var(--line);background:#fff;border-radius:7px;padding:2px 5px;font-size:14px;line-height:1.2;cursor:pointer;opacity:.45;flex:none}
 .lock:hover{opacity:1}
 .lock.on{opacity:1;background:var(--warn-soft);border-color:#e7c88a}
+.prog-b{border:1px solid var(--line);background:#fff;border-radius:7px;padding:2px 5px;font-size:11px;font-weight:700;line-height:1.5;cursor:pointer;color:var(--muted);flex:none;opacity:.6}
+.prog-b:hover{opacity:1}
+.prog-b.on{opacity:1;color:#fff;background:#7a3fa0;border-color:#7a3fa0}
+.prog-b.vih.on{background:#b3261e;border-color:#b3261e}
 .tras{border:1px solid var(--line);background:#fff;border-radius:7px;padding:2px 5px;font-size:14px;line-height:1.2;cursor:pointer;opacity:.45;flex:none}
 .tras:hover{opacity:1}
 .tras.on{opacity:1;background:var(--blue-soft);border-color:#a9c0e6}
@@ -142,7 +146,7 @@ body.blind .item,body.blind .hdr{grid-template-columns:40px 92px 1fr 110px}
     <h3>1. Sacar el listado del sistema</h3>
     <p>En SIGEHOS, módulo “Medicación e insumos”, abrí <b>Listado de Stock</b> con <b>Agrupado</b>, <b>Activos</b> y <b>Con Stock</b> tildados y exportalo a Excel. Cargá ese archivo con el botón verde. Si el archivo viene por lote, la app suma el stock de cada artículo y muestra los lotes debajo del nombre.</p>
     <h3>2. Clasificación</h3>
-    <p>Cada artículo queda en <b>Medicamentos</b> o <b>Descartables</b>. Si el listado trae una columna de tipo o rubro se usa esa; si no, se reconoce por la descripción (jeringas, agujas, gasas, tiras reactivas, lancetas, guantes, etc.). Los medicamentos de los programas <b>Remediar</b>, <b>TBC</b> y <b>VIH</b> van cada uno a su propia pestaña. TBC y VIH se reconocen por el principio activo; Remediar, por la columna de origen o programa del listado (o si la descripción dice “Remediar”). Si un mismo medicamento está en stock propio y de Remediar, aparece en las dos pestañas. Lo que la app marque mal se corrige en <b>Acomodar</b> y queda recordado para los próximos listados.</p>
+    <p>Cada artículo queda en <b>Medicamentos</b> o <b>Descartables</b>. Si el listado trae una columna de tipo o rubro se usa esa; si no, se reconoce por la descripción (jeringas, agujas, gasas, tiras reactivas, lancetas, guantes, etc.). Los medicamentos de los programas <b>Remediar</b>, <b>TBC</b> y <b>VIH</b> van cada uno a su propia pestaña. TBC y VIH se reconocen por el principio activo; Remediar, por la columna de origen o programa del listado (o si la descripción dice “Remediar”). Si un mismo medicamento está en stock propio y de Remediar, aparece en las dos pestañas. Lo que la app marque mal se corrige en <b>Acomodar</b> y queda recordado para los próximos listados. Para asignar un medicamento a un programa basta con tocar <b>TBC</b> o <b>VIH</b> al lado del nombre; tocándolo de nuevo vuelve a su grupo.</p>
     <p><b>Controlados</b>: los estupefacientes (morfina, metadona, fentanilo, codeína, oxicodona, buprenorfina, ketamina…) y los psicotrópicos (clonazepam, alprazolam, diazepam, lorazepam, midazolam, zolpidem, fenobarbital, metilfenidato…) van a su propia pestaña, separados por tipo y forma, aunque sean de Remediar (se les deja la etiqueta Remediar). Cualquier otro medicamento que quieras controlar, por ejemplo tramadol, se marca con el candado 🔓 al lado del nombre: pasa a Controlados como <b>Control interno</b>. Tocando de nuevo el candado 🔒 vuelve a su grupo. Si alguno quedó mal clasificado, cambialo en el modo <b>Acomodar</b>.</p>
     <h3>3. El orden de los estantes</h3>
     <p>Por defecto se ordena alfabéticamente por principio activo (genérico). Dentro de cada grupo de medicamentos se separan por forma farmacéutica: comprimidos y cápsulas, líquidos orales (jarabes y suspensiones), inyectables, inhalatorios, gotas (orales, oftálmicas, óticas y nasales, todas juntas), tópicos y óvulos/supositorios. Con los botones de forma podés contar un estante a la vez. La forma se deduce de la descripción; si alguna queda mal, cambiala en <b>Acomodar</b>. Si algún artículo está en otro lugar del estante, entrá en <b>Acomodar</b> y movelo con las flechas: la app recuerda ese orden en esta computadora y lo usa en los próximos conteos.</p>
@@ -744,6 +748,11 @@ function renderList(){
     var tags=(it.isRem&&it.tipo!=='Remediar'?' <span class="pill p-man">Remediar</span>':'')+(it.ctrl==='Control interno'?' <span class="pill p-warn">control interno</span>':'');
     var trasB='<button class="tras'+(state.tras[it.key]?' on':'')+'" data-tras="'+state.items.indexOf(it)+'" title="'+(state.tras[it.key]?'Quitar del traslado a enfermería':'Trasladar a enfermería')+'">🏥</button>';
     var lock = it.tipoBase==='Descartable' ? trasB : trasB+'<button class="lock'+(it.ctrl?' on':'')+'" data-lock="'+state.items.indexOf(it)+'" title="'+(it.ctrl?'Quitar de Controlados':'Marcar para controlar')+'">'+(it.ctrl?'🔒':'🔓')+'</button>';
+    if(it.tipoBase!=='Descartable'){
+      var ix=state.items.indexOf(it);
+      lock+='<button class="prog-b'+(it.tipoBase==='TBC'?' on':'')+'" data-prog="TBC" data-pi="'+ix+'" title="'+(it.tipoBase==='TBC'?'Quitar de Programa TBC':'Asignar a Programa TBC')+'">TBC</button>'+
+            '<button class="prog-b vih'+(it.tipoBase==='VIH'?' on':'')+'" data-prog="VIH" data-pi="'+ix+'" title="'+(it.tipoBase==='VIH'?'Quitar de Programa VIH':'Asignar a Programa VIH')+'">VIH</button>';
+    }
     var name='<div class="nmw">'+lock+'<div><div class="nm">'+esc(displayName(it))+tags+'</div>'+subHTML(it)+'</div></div>';
     if(arrange){
       html+='<div class="item arr" data-k="'+esc(it.key)+'"><span class="pos">'+(i+1)+'</span><span class="cod">'+esc(it.code||'—')+'</span>'+name+
@@ -879,6 +888,21 @@ $('list').addEventListener('change',function(e){
   buildItems(); persist(); render(); toast('Movido a '+GNAME[e.target.value]);
 });
 $('list').addEventListener('click',function(e){
+  var pb=e.target.closest('[data-prog]');
+  if(pb){
+    var pit=state.items[+pb.getAttribute('data-pi')]; if(!pit) return;
+    var prog=pb.getAttribute('data-prog'), pk=pit.key;
+    if(pit.tipoBase===prog){
+      // quitar: vuelve a su grupo (si la app lo había puesto sola en el programa, queda como medicamento común)
+      if(state.tipoOv[pk]===prog) delete state.tipoOv[pk]; else state.tipoOv[pk]= pit.isRem ? 'Remediar' : 'Medicamento';
+      buildItems(); var nit=state.items.find(function(x){return x.key===pk;});
+      if(nit && nit.tipoBase===prog) state.tipoOv[pk]= nit.isRem ? 'Remediar' : 'Medicamento';
+      toast(displayName(pit)+' salió de '+GNAME[prog]);
+    } else {
+      state.tipoOv[pk]=prog; toast(displayName(pit)+' → '+GNAME[prog]);
+    }
+    buildItems(); persist(); render(); return;
+  }
   var tb=e.target.closest('[data-tras]');
   if(tb){
     var ti=state.items[+tb.getAttribute('data-tras')]; if(!ti) return; var tk=ti.key;

@@ -784,7 +784,7 @@ $('file').addEventListener('change',async function(e){
     if(m.desc<0 && m.code<0 && m.gen<0) throw new Error('No encuentro la columna con el nombre del artículo. Revisá que sea el Listado de Stock.');
     var keep = state.items.length && Object.keys(state.counts).length;
     var doLoad=function(resetCounts){
-      state.raw=t; state.map=m; state.fileName=f.name; state.dep='';
+      t.loadedAt=Date.now(); state.raw=t; state.map=m; state.fileName=f.name; state.dep='';
       if(resetCounts){ state.counts={}; state.extra=[]; state.startedAt=Date.now(); }
       buildItems(); persist(); renderFileInfo(); render();
       toast(state.items.length+' artículos cargados');
@@ -801,6 +801,11 @@ function renderFileInfo(){
   $('fileInfo').innerHTML='<b>'+esc(state.fileName)+'</b> · '+state.items.length+' artículos'+(m.stock>=0?' · stock tomado de la columna <b>“'+esc(state.raw.headers[m.stock])+'”</b>':'')+(m.code>=0?' · código de la columna <b>“'+esc(state.raw.headers[m.code])+'”</b>':' · <span style="color:var(--bad)">sin columna de código</span>')+(state.startedAt?' · conteo iniciado '+new Date(state.startedAt).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'');
   $('errBox').innerHTML = miss.length ? '<div class="err">No encontré la columna de <b>stock</b>, por eso no se ve el stock del sistema. Abrí “Columnas detectadas” y elegí en <b>Stock</b> la columna con la cantidad (la fraccionada, en unidades).</div>'
     : (!withStock && state.items.length ? '<div class="err">La columna “'+esc(state.raw.headers[m.stock])+'” no tiene cantidades. Abrí “Columnas detectadas” y elegí en <b>Stock</b> la columna correcta.</div>' : '');
+  var la=state.raw.loadedAt;
+  if(state.fileName.indexOf('Ejemplo')!==0){
+    var old = !la || (Date.now()-la) > 12*3600*1000;
+    $('errBox').innerHTML+='<div class="'+(old?'err':'note')+'">'+(la?'Listado cargado el <b>'+new Date(la).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</b>':'No se sabe cuándo se cargó este listado.')+(old?'. El stock del sistema puede estar <b>desactualizado</b>: sacá el Listado de Stock de hoy en SIGEHOS y cargalo antes de contar.':'')+'</div>';
+  }
   if(m.code<0) $('errBox').innerHTML+='<div class="err">No encontré la columna del <b>código</b>. Abrí “Columnas detectadas” y elegí en <b>Código</b> la columna B (o la que tenga el código).</div>';
   if(miss.length || !withStock || m.code<0) $('mapBox').open=true;
   $('mapBox').style.display='';

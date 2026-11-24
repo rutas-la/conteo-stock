@@ -469,6 +469,8 @@ async function readFile(file){
     var text; try{ text=new TextDecoder('utf-8',{fatal:true}).decode(buf); }catch(e){ text=new TextDecoder('windows-1252').decode(buf); }
     table=parseDelimited(text);
   }
+  var rowNo=table.map(function(r,i){ return i+1; });
+  rowNo=rowNo.filter(function(n,i){ return table[i].some(function(c){ return String(c).trim()!==''; }); });
   table=table.filter(function(r){ return r.some(function(c){ return String(c).trim()!==''; }); })
              .map(function(r){ return r.map(function(c){ return c instanceof Date ? fmtDate(c) : c; }); });
   // buscar la fila de encabezados (algunos reportes traen títulos arriba)
@@ -481,7 +483,7 @@ async function readFile(file){
   if(table.length-hi<2) throw new Error('El archivo no tiene filas de datos.');
   var seen={};
   var headers=table[hi].map(function(h,i){ var s=String(h==null?'':h).trim()||('Col '+(i+1)); if(seen[s]){seen[s]++; s+=' ('+seen[s]+')';} else seen[s]=1; return s; });
-  return {headers:headers,data:table.slice(hi+1)};
+  return {headers:headers,data:table.slice(hi+1),rowNo:rowNo.slice(hi+1)};
 }
 
 var RX={
@@ -589,7 +591,7 @@ function buildItems(){
   var items=[];
   if(state.raw){
     var m=state.map, map=new Map(), deps={};
-    state.raw.data.forEach(function(r){
+    state.raw.data.forEach(function(r,idx){
       var desc=m.desc>=0?String(r[m.desc]).trim():'', code=m.code>=0?String(r[m.code]).trim():'', gen=m.gen>=0?String(r[m.gen]).trim():'';
       if(!desc && !code && !gen) return;
       if(/^total/.test(norm(desc||code))) return;
@@ -599,11 +601,12 @@ function buildItems(){
       var pg=progOf(origen), key=(code||desc||gen).toUpperCase()+(pg?'|'+pg:'');
       var it=map.get(key);
       if(!it){
-        it={key:key,code:code,desc:desc||gen,gen:gen,tipoTxt:m.tipo>=0?String(r[m.tipo]).trim():'',origen:origen,stock:null,lotes:[]};
+        it={key:key,code:code,desc:desc||gen,gen:gen,tipoTxt:m.tipo>=0?String(r[m.tipo]).trim():'',origen:origen,stock:null,lotes:[],parts:[]};
         map.set(key,it); items.push(it);
       }
       var s=m.stock>=0?parseNum(r[m.stock]):null;
       if(s!=null) it.stock=(it.stock||0)+s;
+      it.parts.push({s:s, desc:desc, dep:dep, fila:state.raw.rowNo ? state.raw.rowNo[idx] : null});
       var lote=m.lote>=0?String(r[m.lote]).trim():'', venc=m.venc>=0?fmtDate(r[m.venc]):'';
       if(lote||venc){ var lt=(lote?'L. '+lote:'')+(venc?(lote?' · ':'')+'vto '+venc:''); if(it.lotes.indexOf(lt)<0) it.lotes.push(lt); }
     });
@@ -725,6 +728,7 @@ function subHTML(it){
   if(it.desc && norm(it.desc)!==norm(dn)) parts.push(esc(it.desc));
   if(it.lotes.length) parts.push(esc(it.lotes.slice(0,3).join(' | '))+(it.lotes.length>3?' (+'+(it.lotes.length-3)+')':''));
   if(it.manual) parts.push('agregado a mano');
+  if(it.parts && it.parts.length>1) parts.push('<span style="color:var(--warn);font-weight:600">⚠ stock = suma de '+it.parts.length+' filas del listado ('+it.parts.map(function(p){ return fmt(p.s||0)+(p.dep?' en '+esc(p.dep):'')+(p.fila?' (fila '+p.fila+')':''); }).join(' + ')+')</span>');
   var cod = it.code ? '<span class="codsub">Cód. <span class="code">'+esc(it.code)+'</span>'+(parts.length?' · ':'')+'</span>' : '';
   return (cod||parts.length) ? '<div class="sub">'+cod+parts.join(' · ')+'</div>' : '';
 }
